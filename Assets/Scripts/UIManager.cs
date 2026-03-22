@@ -36,30 +36,21 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject endScreen;
     [SerializeField] private TextMeshProUGUI endText;
 
-    [Header("Text Settings")]
-    [SerializeField] private float textFadeSpeed = 30f;
-    [SerializeField] private float scrollDelay = 0.1f;
-
     private List<Button> activeChoiceButtons = new List<Button>();
-    private bool isTyping = false;
-    private Coroutine typingCoroutine;
+    private bool waitingForChoices = false;
 
     private void Start()
     {
-        // Subscribe to narrative events
         narrativeManager.OnNarrativeText += DisplayText;
         narrativeManager.OnChoicesPresented += DisplayChoices;
         narrativeManager.OnStoryEnd += HandleStoryEnd;
 
-        // Setup continue button
         continueButton.onClick.AddListener(OnContinueClicked);
         continueButton.gameObject.SetActive(false);
 
-        // Setup start buttons
         startButtonA.onClick.AddListener(() => StartGame("A"));
         startButtonB.onClick.AddListener(() => StartGame("B"));
 
-        // Hide game UI until start
         narrativeText.text = "";
         endScreen.SetActive(false);
         startScreen.SetActive(true);
@@ -79,54 +70,31 @@ public class UIManager : MonoBehaviour
 
     private void DisplayText(string text)
     {
-        // Hide choices and continue button while text is appearing
         choiceContainer.gameObject.SetActive(false);
         continueButton.gameObject.SetActive(false);
 
-        if (typingCoroutine != null)
-            StopCoroutine(typingCoroutine);
-
-        typingCoroutine = StartCoroutine(TypeText(text));
-    }
-
-    private IEnumerator TypeText(string text)
-    {
-        isTyping = true;
-
-        // Append new paragraph with spacing
+        // Append text with paragraph spacing
         if (!string.IsNullOrEmpty(narrativeText.text))
             narrativeText.text += "\n\n";
 
-        int startIndex = narrativeText.text.Length;
         narrativeText.text += text;
 
-        // Force mesh update and scroll to bottom
+        // Force layout update and scroll
         narrativeText.ForceMeshUpdate();
-        yield return null;
-        ScrollToBottom();
-
-        isTyping = false;
-
-        // Check if there are choices waiting or more text
-        if (narrativeManager.CurrentStory.currentChoices.Count > 0)
-        {
-            DisplayChoices(narrativeManager.CurrentStory.currentChoices);
-        }
-        else if (narrativeManager.CurrentStory.canContinue)
-        {
-            continueButton.gameObject.SetActive(true);
-        }
-        else
-        {
-            // Story ended
-            HandleStoryEnd();
-        }
+        StartCoroutine(ScrollToBottomDelayed());
     }
 
     private void DisplayChoices(List<Choice> choices)
     {
-        // Clear old buttons
         ClearChoices();
+
+        // Small delay so text is visible before choices appear
+        StartCoroutine(ShowChoicesDelayed(choices));
+    }
+
+    private IEnumerator ShowChoicesDelayed(List<Choice> choices)
+    {
+        yield return new WaitForSeconds(0.3f);
 
         choiceContainer.gameObject.SetActive(true);
         continueButton.gameObject.SetActive(false);
@@ -151,7 +119,6 @@ public class UIManager : MonoBehaviour
 
     private void OnChoiceSelected(int index)
     {
-        // Add the selected choice text to the narrative display
         if (index < narrativeManager.CurrentStory.currentChoices.Count)
         {
             string choiceText = narrativeManager.CurrentStory.currentChoices[index].text;
@@ -166,8 +133,6 @@ public class UIManager : MonoBehaviour
 
     private void OnContinueClicked()
     {
-        if (isTyping) return;
-
         continueButton.gameObject.SetActive(false);
         narrativeManager.ContinueStory();
     }
@@ -185,7 +150,6 @@ public class UIManager : MonoBehaviour
     {
         continueButton.gameObject.SetActive(false);
         choiceContainer.gameObject.SetActive(false);
-
         endScreen.SetActive(true);
         endText.text = "Session Complete";
     }
@@ -199,6 +163,7 @@ public class UIManager : MonoBehaviour
     private IEnumerator ScrollToBottomDelayed()
     {
         yield return new WaitForEndOfFrame();
+        yield return null;
         ScrollToBottom();
     }
 

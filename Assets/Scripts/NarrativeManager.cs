@@ -1,5 +1,6 @@
 using UnityEngine;
 using Ink.Runtime;
+using System.Collections.Generic;
 
 /// <summary>
 /// Core bridge between Ink narrative and Unity.
@@ -18,11 +19,11 @@ public class NarrativeManager : MonoBehaviour
     private Story story;
 
     // Events that other scripts listen to
-    public System.Action<string> OnNarrativeText;          // Fired when new text line is ready
-    public System.Action<System.Collections.Generic.List<Choice>> OnChoicesPresented; // Fired when choices appear
-    public System.Action<string> OnTagReceived;            // Fired for each tag on a line
-    public System.Action<string, string> OnChoiceMade;     // Fired when player picks a choice (variableName, value)
-    public System.Action OnStoryEnd;                       // Fired when story reaches END
+    public System.Action<string> OnNarrativeText;
+    public System.Action<List<Choice>> OnChoicesPresented;
+    public System.Action<string> OnTagReceived;
+    public System.Action<string, string> OnChoiceMade;
+    public System.Action OnStoryEnd;
 
     public Story CurrentStory => story;
     public string CurrentCondition => condition;
@@ -39,10 +40,6 @@ public class NarrativeManager : MonoBehaviour
         story.variablesState["condition"] = condition;
     }
 
-    /// <summary>
-    /// Call this to set the condition before starting.
-    /// Must be called before StartStory().
-    /// </summary>
     public void SetCondition(string cond)
     {
         condition = cond;
@@ -50,9 +47,6 @@ public class NarrativeManager : MonoBehaviour
             story.variablesState["condition"] = condition;
     }
 
-    /// <summary>
-    /// Begins the story. Called by UIManager when the game starts.
-    /// </summary>
     public void StartStory()
     {
         if (story == null)
@@ -60,56 +54,58 @@ public class NarrativeManager : MonoBehaviour
             Debug.LogError("NarrativeManager: Story not initialized.");
             return;
         }
-
         ContinueStory();
     }
 
     /// <summary>
-    /// Advances the story and sends the next chunk of text.
-    /// Continues until choices appear or the story ends.
+    /// Gathers all text lines until the next choice point or story end.
+    /// Sends them as one combined block.
     /// </summary>
     public void ContinueStory()
     {
         if (story == null) return;
 
-        if (story.canContinue)
-        {
-            string text = story.Continue().Trim();
+        string combinedText = "";
 
-            // Process tags on this line
+        while (story.canContinue)
+        {
+            string line = story.Continue().Trim();
+
+            // Process tags
             foreach (string tag in story.currentTags)
             {
                 OnTagReceived?.Invoke(tag);
             }
 
-            // Skip empty lines
-            if (string.IsNullOrEmpty(text))
+            if (!string.IsNullOrEmpty(line))
             {
-                // If there's more content, keep going
-                if (story.canContinue)
-                    ContinueStory();
-                else if (story.currentChoices.Count > 0)
-                    OnChoicesPresented?.Invoke(story.currentChoices);
-                else
-                    OnStoryEnd?.Invoke();
-                return;
+                if (!string.IsNullOrEmpty(combinedText))
+                    combinedText += "\n\n";
+                combinedText += line;
             }
 
-            OnNarrativeText?.Invoke(text);
+            // If choices appeared after this line, stop gathering
+            if (story.currentChoices.Count > 0)
+                break;
         }
-        else if (story.currentChoices.Count > 0)
+
+        // Send the combined text block
+        if (!string.IsNullOrEmpty(combinedText))
+        {
+            OnNarrativeText?.Invoke(combinedText);
+        }
+
+        // Now handle what comes next
+        if (story.currentChoices.Count > 0)
         {
             OnChoicesPresented?.Invoke(story.currentChoices);
         }
-        else
+        else if (!story.canContinue)
         {
             OnStoryEnd?.Invoke();
         }
     }
 
-    /// <summary>
-    /// Called when the player selects a choice.
-    /// </summary>
     public void MakeChoice(int choiceIndex)
     {
         if (story == null || choiceIndex < 0 || choiceIndex >= story.currentChoices.Count)
@@ -117,25 +113,17 @@ public class NarrativeManager : MonoBehaviour
 
         Choice selected = story.currentChoices[choiceIndex];
         story.ChooseChoiceIndex(choiceIndex);
-
-        // Log which choice variable was just set
         OnChoiceMade?.Invoke(selected.text, choiceIndex.ToString());
 
         ContinueStory();
     }
 
-    /// <summary>
-    /// Get current value of an Ink variable.
-    /// </summary>
     public object GetVariable(string varName)
     {
         if (story == null) return null;
         return story.variablesState[varName];
     }
 
-    /// <summary>
-    /// Get the current scene name from Ink.
-    /// </summary>
     public string GetCurrentScene()
     {
         object val = GetVariable("current_scene");
