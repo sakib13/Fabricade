@@ -1,7 +1,9 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System.IO;
 using Ink.Runtime;
+using IOPath = System.IO.Path;
+using Directory = System.IO.Directory;
+using File = System.IO.File;
 
 /// <summary>
 /// Logs all player behavior to a timestamped JSON file.
@@ -70,11 +72,11 @@ public class BehavioralLogger : MonoBehaviour
         sessionStartTime = Time.time;
 
         // Create output directory
-        string fullPath = Path.Combine(Application.dataPath, "..", outputFolder);
+        string fullPath = IOPath.Combine(Application.dataPath, "..", outputFolder);
         if (!Directory.Exists(fullPath))
             Directory.CreateDirectory(fullPath);
 
-        sessionFilePath = Path.Combine(fullPath,
+        sessionFilePath = IOPath.Combine(fullPath,
             $"session_{sessionLog.sessionId}_{System.DateTime.Now:yyyyMMdd_HHmmss}.json");
     }
 
