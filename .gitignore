@@ -55,6 +55,3 @@ crashlytics-build.properties
 *.app.zip
 MacBuild*/
 SessionLogs/
-
-# Large audio files (exceed GitHub 100MB limit)
-Assets/Audio/*.wav
