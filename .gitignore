@@ -55,3 +55,6 @@ crashlytics-build.properties
 *.app.zip
 MacBuild*/
 SessionLogs/
+
+# Default Unity packages (skew language stats)
+Assets/TextMesh Pro/
