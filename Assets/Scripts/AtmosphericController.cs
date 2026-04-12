@@ -29,6 +29,13 @@ public class AtmosphericController : MonoBehaviour
     [SerializeField] private AudioClip ambientStatic;
     [SerializeField] private AudioClip ambientHeartbeat;
 
+    [Header("Glitch")]
+    [SerializeField] private GlitchController glitchController;
+
+    [Header("Vignette (Condition B only)")]
+    [SerializeField] private RawImage vignetteImage; // dark edge layer
+    [SerializeField] private RawImage glowImage;     // warm centre layer
+
     [Header("Transition Settings")]
     [SerializeField] private float colorTransitionSpeed = 2f;
     [SerializeField] private float audioTransitionSpeed = 1.5f;
@@ -73,9 +80,90 @@ public class AtmosphericController : MonoBehaviour
         if (narrativeManager != null)
             narrativeManager.OnTagReceived += ProcessTag;
 
-        // Set initial state
+        if (vignetteImage != null) GenerateVignetteTexture();
+        if (glowImage != null)    GenerateGlowTexture();
+
         ApplyMoodInstant("clinical");
     }
+
+    /// <summary>
+    /// Dark edge vignette — black at the perimeter, transparent at the centre.
+    /// Pow exponent 1.2 gives broader coverage than the previous 2.2.
+    /// </summary>
+    private void GenerateVignetteTexture()
+    {
+        const int size = 256;
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Vector2 center = new Vector2(size * 0.5f, size * 0.5f);
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dist  = Vector2.Distance(new Vector2(x, y), center) / (size * 0.5f);
+                float alpha = Mathf.Clamp01(Mathf.Pow(dist, 1.2f)); // broader falloff
+                tex.SetPixel(x, y, new Color(0f, 0f, 0f, alpha));
+            }
+        }
+        tex.Apply();
+        vignetteImage.texture = tex;
+        SetRawImageAlpha(vignetteImage, 0f);
+    }
+
+    /// <summary>
+    /// Warm centre glow — bright at the centre, transparent at the edges.
+    /// Creates contrast with the dark vignette so both effects are visible on a dark BG.
+    /// </summary>
+    private void GenerateGlowTexture()
+    {
+        const int size = 256;
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Vector2 center = new Vector2(size * 0.5f, size * 0.5f);
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dist  = Vector2.Distance(new Vector2(x, y), center) / (size * 0.5f);
+                float alpha = Mathf.Clamp01(Mathf.Pow(1f - dist, 3.5f)); // tight centre falloff
+                tex.SetPixel(x, y, new Color(1f, 0.94f, 0.82f, alpha)); // warm cream tint
+            }
+        }
+        tex.Apply();
+        glowImage.texture = tex;
+        SetRawImageAlpha(glowImage, 0f);
+    }
+
+    private static void SetRawImageAlpha(RawImage img, float alpha)
+    {
+        Color c = img.color;
+        c.a = alpha;
+        img.color = c;
+    }
+
+    // Stronger values — covers more of the screen so the effect is legible on dark BG
+    private float GetVignetteIntensity(string ambientKey) => ambientKey switch
+    {
+        "clinical"  => 0.80f,
+        "warm"      => 0.55f,
+        "autumn"    => 0.65f,
+        "hospital"  => 0.88f,
+        "static"    => 0.92f,
+        "heartbeat" => 0.96f,
+        _           => 0.70f
+    };
+
+    // Glow is most present in warm/intimate scenes, barely there in cold clinical ones
+    private float GetGlowIntensity(string ambientKey) => ambientKey switch
+    {
+        "clinical"  => 0.05f,
+        "warm"      => 0.18f,
+        "autumn"    => 0.12f,
+        "hospital"  => 0.04f,
+        "static"    => 0.04f,
+        "heartbeat" => 0.09f,
+        _           => 0.07f
+    };
 
     public void SetCondition(string condition)
     {
@@ -239,6 +327,11 @@ public class AtmosphericController : MonoBehaviour
 
         string mood = tag.Substring(5); // Remove "mood:" prefix
 
+        // Screen glitch fires at the corridor → room threshold (Condition B only)
+        // This tag fires in scene3_corridor just before scene4_room begins
+        if (mood == "transition_to_fractured" && currentCondition == "B" && glitchController != null)
+            glitchController.TriggerScreenGlitch();
+
         // In Condition A, only apply scene-level transitions (not choice-dependent moods)
         if (currentCondition == "A")
         {
@@ -273,22 +366,23 @@ public class AtmosphericController : MonoBehaviour
         currentMood = mood;
         MoodProfile profile = moodProfiles[mood];
 
-        if (backgroundPanel != null)
-            backgroundPanel.color = profile.backgroundColor;
-        if (mainCamera != null)
-            mainCamera.backgroundColor = profile.backgroundColor;
+        // Background colour is fixed for both conditions — no changes applied here.
         if (narrativeText != null)
         {
-            narrativeText.color = profile.textColor;
+            narrativeText.color    = profile.textColor;
             narrativeText.fontSize = profile.fontSize;
         }
     }
 
     private IEnumerator TransitionToMood(MoodProfile target)
     {
-        Color startBg = backgroundPanel != null ? backgroundPanel.color : Color.black;
-        Color startText = narrativeText != null ? narrativeText.color : Color.white;
+        Color startText = narrativeText != null ? narrativeText.color    : Color.white;
         float startSize = narrativeText != null ? narrativeText.fontSize : 24f;
+
+        float targetVignette = currentCondition == "B" ? GetVignetteIntensity(target.ambientKey) : 0f;
+        float startVignette  = vignetteImage != null ? vignetteImage.color.a : 0f;
+        float targetGlow     = currentCondition == "B" ? GetGlowIntensity(target.ambientKey) : 0f;
+        float startGlow      = glowImage     != null ? glowImage.color.a     : 0f;
 
         // Audio transition
         AudioClip targetClip = GetAmbientClip(target.ambientKey);
@@ -309,29 +403,25 @@ public class AtmosphericController : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
 
-            if (backgroundPanel != null)
-                backgroundPanel.color = Color.Lerp(startBg, target.backgroundColor, t);
-            if (mainCamera != null)
-                mainCamera.backgroundColor = Color.Lerp(startBg, target.backgroundColor, t);
             if (narrativeText != null)
             {
-                narrativeText.color = Color.Lerp(startText, target.textColor, t);
+                narrativeText.color    = Color.Lerp(startText, target.textColor, t);
                 narrativeText.fontSize = Mathf.Lerp(startSize, target.fontSize, t);
             }
+            if (vignetteImage != null) SetRawImageAlpha(vignetteImage, Mathf.Lerp(startVignette, targetVignette, t));
+            if (glowImage     != null) SetRawImageAlpha(glowImage,     Mathf.Lerp(startGlow,     targetGlow,     t));
 
             yield return null;
         }
 
         // Ensure final values
-        if (backgroundPanel != null)
-            backgroundPanel.color = target.backgroundColor;
-        if (mainCamera != null)
-            mainCamera.backgroundColor = target.backgroundColor;
         if (narrativeText != null)
         {
-            narrativeText.color = target.textColor;
+            narrativeText.color    = target.textColor;
             narrativeText.fontSize = target.fontSize;
         }
+        if (vignetteImage != null) SetRawImageAlpha(vignetteImage, targetVignette);
+        if (glowImage     != null) SetRawImageAlpha(glowImage,     targetGlow);
     }
 
     private IEnumerator CrossfadeAudio(AudioClip newClip, float targetVolume)

@@ -5,7 +5,12 @@
 // Condition: "A" = narrative-dialogue adaptation, "B" = atmospheric-aesthetic adaptation
 VAR condition = "A"
 
-// Emotional posture tracks the player's overall emotional stance
+// Behavioral profile (accumulated from choices)
+VAR openness = 0      // vulnerable, honest, emotionally direct choices
+VAR deflection = 0    // avoidance, sidestepping, redirecting choices
+VAR resistance = 0    // confrontational, challenging, refusing choices
+
+// Emotional posture tracks overall stance (drives Kieran's tone)
 // Range: -3 (closed/resistant) to +3 (open/accepting)
 VAR emotional_posture = 0
 
@@ -13,9 +18,12 @@ VAR emotional_posture = 0
 // Range: 0 (no trust) to 3 (full trust)
 VAR trust_in_system = 2
 
-// How aware the player is of the memory inconsistencies
-// Range: 0 (unaware) to 4 (fully aware)
+// How aware the player is of memory inconsistencies
 VAR mystery_awareness = 0
+
+// Personalization: what the player misses most about Kieran
+// "humor" / "honesty" / "refuse"
+VAR miss_most = ""
 
 // Individual choice tracking for behavioral logging
 VAR choice_0_intake = ""

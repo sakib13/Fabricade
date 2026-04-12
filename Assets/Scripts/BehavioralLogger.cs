@@ -136,7 +136,11 @@ public class BehavioralLogger : MonoBehaviour
         sessionLog.totalDurationSeconds = Time.time - sessionStartTime;
 
         // Log final variable states
-        string finalState = $"emotional_posture={narrativeManager.GetVariable("emotional_posture")}, " +
+        string finalState = $"miss_most={narrativeManager.GetVariable("miss_most")}, " +
+                           $"openness={narrativeManager.GetVariable("openness")}, " +
+                           $"deflection={narrativeManager.GetVariable("deflection")}, " +
+                           $"resistance={narrativeManager.GetVariable("resistance")}, " +
+                           $"emotional_posture={narrativeManager.GetVariable("emotional_posture")}, " +
                            $"trust_in_system={narrativeManager.GetVariable("trust_in_system")}, " +
                            $"mystery_awareness={narrativeManager.GetVariable("mystery_awareness")}, " +
                            $"choice_0={narrativeManager.GetVariable("choice_0_intake")}, " +

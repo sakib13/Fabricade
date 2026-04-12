@@ -90,9 +90,15 @@ public class NarrativeManager : MonoBehaviour
         }
 
         // Send the combined text block
+        Debug.Log($"NarrativeManager: combinedText length={combinedText.Length}, canContinue={story.canContinue}, choices={story.currentChoices.Count}");
         if (!string.IsNullOrEmpty(combinedText))
         {
+            Debug.Log($"NarrativeManager: Sending text: {combinedText.Substring(0, Mathf.Min(100, combinedText.Length))}...");
             OnNarrativeText?.Invoke(combinedText);
+        }
+        else
+        {
+            Debug.LogWarning("NarrativeManager: No text to display after continue!");
         }
 
         // Now handle what comes next
@@ -108,8 +114,12 @@ public class NarrativeManager : MonoBehaviour
 
     public void MakeChoice(int choiceIndex)
     {
+        Debug.Log($"MakeChoice called: index={choiceIndex}, story null={story == null}, choices count={story?.currentChoices?.Count}");
         if (story == null || choiceIndex < 0 || choiceIndex >= story.currentChoices.Count)
+        {
+            Debug.LogWarning($"MakeChoice: REJECTED. story null={story == null}, index={choiceIndex}, count={story?.currentChoices?.Count}");
             return;
+        }
 
         Choice selected = story.currentChoices[choiceIndex];
         story.ChooseChoiceIndex(choiceIndex);
