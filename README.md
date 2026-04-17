@@ -2,6 +2,8 @@
 
 Fabricade is a text-based interactive fiction game built as a research instrument for a Master's thesis investigating player experience of emotionally adaptive game narratives. The game is developed in Unity using the Ink narrative scripting language.
 
+**[Play Fabricade in your browser](https://sakib13.github.io/Fabricade/)**
+
 ## About
 
 The player takes on the role of someone who has recently lost a close friend, Kieran. They enrol in a clinical programme run by ELARA (Emotional Landscape and Retrieval Architecture), an AI system that reconstructs shared memories as a form of grief therapy. Across six scenes, the player makes narrative choices that shape how the system responds.
