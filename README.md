@@ -88,6 +88,13 @@ Assets/
 2. Run the executable
 3. Select your condition and play
 
+## What This Demonstrates
+
+- **Adaptive narrative systems** — two distinct models of real-time emotional adaptation driven by player behaviour
+- **Player behavioural modelling** — tracking and responding to accumulated choice patterns across openness, deflection, resistance, and emotional posture
+- **Experimental design for interactive media** — within-subjects study with counterbalanced conditions, structured questionnaires, and qualitative analysis
+- **Unity + Ink integration** — bidirectional communication between Ink narrative state and Unity presentation layer (atmospheric overlays, glitch effects, audio)
+
 ## Session Logging
 
 The game automatically logs each session to `SessionLogs/` in JSON format, recording every choice made, timestamps, hesitation times, and condition assignment.
