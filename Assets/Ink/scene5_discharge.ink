@@ -53,7 +53,7 @@ ELARA: "Three options. Schedule a follow-up. Delete session data permanently. Or
     # mood:ending_return
 
     {condition == "A":
-        You're choosing manufactured comfort with your eyes open. For forty-seven minutes, Kieran was alive, and the grief was bearable. That's enough.
+        You're choosing manufactured comfort with your eyes open. For forty-seven minutes, Liam was alive, and the grief was bearable. That's enough.
     - else:
         # mood:ending_return_atmosphere
         You walk out. The city receives you without comment.
@@ -67,7 +67,7 @@ ELARA: "Three options. Schedule a follow-up. Delete session data permanently. Or
     {condition == "A":
         ELARA: "Deletion complete."
 
-        0.3 seconds. Kieran's face in four different lights. Gone faster than blinking.
+        0.3 seconds. Liam's face in four different lights. Gone faster than blinking.
     - else:
         # mood:clinical_cold_sever
         ELARA: "Deletion complete."

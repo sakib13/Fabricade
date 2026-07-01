@@ -27,6 +27,7 @@ public class AtmosphericController : MonoBehaviour
     [SerializeField] private AudioClip ambientAutumn;
     [SerializeField] private AudioClip ambientHospital;
     [SerializeField] private AudioClip ambientStatic;
+    [SerializeField] private AudioClip ambientStatic2;
     [SerializeField] private AudioClip ambientHeartbeat;
 
     [Header("Glitch")]
@@ -222,6 +223,8 @@ public class AtmosphericController : MonoBehaviour
             new Color(0.16f, 0.13f, 0.09f), new Color(0.92f, 0.80f, 0.62f), 24f, 0.45f, "autumn");
         moodProfiles["autumn_sparse"] = new MoodProfile(
             new Color(0.10f, 0.10f, 0.10f), new Color(0.70f, 0.65f, 0.58f), 24f, 0.3f, "autumn");
+        moodProfiles["autumn_hollow"] = new MoodProfile(
+            new Color(0.09f, 0.09f, 0.08f), new Color(0.62f, 0.58f, 0.52f), 24f, 0.2f, "autumn");
         moodProfiles["autumn_fading"] = new MoodProfile(
             new Color(0.09f, 0.09f, 0.09f), new Color(0.65f, 0.60f, 0.52f), 24f, 0.25f, "autumn");
 
@@ -270,6 +273,8 @@ public class AtmosphericController : MonoBehaviour
             new Color(0.04f, 0.04f, 0.06f), new Color(0.70f, 0.72f, 0.78f), 24f, 0.3f, "static");
         moodProfiles["fractured_unstable"] = new MoodProfile(
             new Color(0.08f, 0.06f, 0.10f), fracturedText, 24f, 0.5f, "static");
+        moodProfiles["fractured_mirror"] = new MoodProfile(
+            new Color(0.07f, 0.07f, 0.10f), new Color(0.80f, 0.78f, 0.85f), 24f, 0.45f, "static");
         moodProfiles["fractured_fading"] = new MoodProfile(
             new Color(0.07f, 0.07f, 0.08f), new Color(0.72f, 0.70f, 0.75f), 24f, 0.35f, "static");
         moodProfiles["fractured_dissolve"] = new MoodProfile(
@@ -462,7 +467,7 @@ public class AtmosphericController : MonoBehaviour
             "warm" => ambientWarm,
             "autumn" => ambientAutumn,
             "hospital" => ambientHospital,
-            "static" => ambientStatic,
+            "static" => ambientStatic2,
             "heartbeat" => ambientHeartbeat,
             _ => null,
         };

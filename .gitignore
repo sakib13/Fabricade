@@ -55,6 +55,8 @@ crashlytics-build.properties
 *.app
 *.app.zip
 MacBuild*/
+Desktop Build/
+Web Build/
 SessionLogs/
 
 # Default Unity packages (skew language stats)

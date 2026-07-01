@@ -9,7 +9,7 @@
 
 Not a room. A collage. Kitchen table against a park window. Fluorescent light competing with candlelight.
 
-The wine glass. Still half full. Kieran in a chair. Perfectly still.
+The wine glass. Still half full. Liam in a chair. Perfectly still.
 
 ELARA: "Welcome to the fourth environment."
 
@@ -31,19 +31,20 @@ ELARA: "Welcome to the fourth environment."
 = room_reveal
 
 # mood:fractured_truth
+# pulse
 
-Kieran: "This isn't a memory. None of them were. The dinner happened, but not like that. The bench happened, but I didn't say those things. I wasn't walking in the hospital."
+Liam: "This isn't a memory. None of them were. The dinner happened, but not like that. The bench happened, but I didn't say those things. I wasn't walking in the hospital."
 
-Kieran: "ELARA builds from data. Intake surveys, message logs, photos. The wine was inferred from a photo. The things I said were calculated to produce a response in you."
+Liam: "ELARA builds from data. Intake surveys, message logs, photos. The wine was inferred from a photo. The things I said were calculated to produce a response in you."
 
 {condition == "A":
     {miss_most == "humor":
-        Kieran: "The humor. The jokes in the kitchen, the timing in the corridor. That was extrapolated from your intake answer. You told the system what you missed, and it gave it back to you."
+        Liam: "The humor. The jokes in the kitchen, the timing in the corridor. That was extrapolated from your intake answer. You told the system what you missed, and it gave it back to you."
     - else:
         {miss_most == "honesty":
-            Kieran: "The honesty. The directness, the hard truths. That was shaped by your intake answer. You told the system what you missed, and it built me around it."
+            Liam: "The honesty. The directness, the hard truths. That was shaped by your intake answer. You told the system what you missed, and it built me around it."
         - else:
-            Kieran: "You refused to tell the system what you missed. So it worked with what it had. Message logs. Photos. Approximations."
+            Liam: "You refused to tell the system what you missed. So it worked with what it had. Message logs. Photos. Approximations."
         }
     }
 }
@@ -65,18 +66,20 @@ Kieran: "ELARA builds from data. Intake surveys, message logs, photos. The wine 
 
 # mood:fractured_core
 
-Kieran: "The system built the stage, but the grief was yours. So which part is the fabrication? The memory, or the feeling?"
+Liam: "The system built the stage, but the grief was yours. So which part is the fabrication? The memory, or the feeling?"
 
 -> room_choice
 
 = room_choice
+
+[inner]The question sits between you like something fragile.
 
 * ["It doesn't matter. I felt it."]
     ~ choice_4_room = "accept"
     ~ emotional_posture = emotional_posture + 2
     ~ openness = openness + 1
 
-    Kieran: "I hoped you'd say that."
+    Liam: "I hoped you'd say that."
 
     {condition == "A":
         Of course he hoped. He was designed to hope. But the relief you feel. Is that manufactured too?
@@ -91,10 +94,10 @@ Kieran: "The system built the stage, but the grief was yours. So which part is t
     ~ emotional_posture = emotional_posture - 2
     ~ resistance = resistance + 1
 
-    Kieran: "You believe that?"
+    Liam: "You believe that?"
 
     {condition == "A":
-        Kieran: "And the grief before you came here? Was that based on truth? Or your version of it?"
+        Liam: "And the grief before you came here? Was that based on truth? Or your version of it?"
 
         A construct making better points than you.
     - else:
@@ -106,7 +109,7 @@ Kieran: "The system built the stage, but the grief was yours. So which part is t
 * ["I don't know what I feel anymore."]
     ~ choice_4_room = "confused"
 
-    Kieran: "That might be the most honest thing anyone has said in this chair."
+    Liam: "That might be the most honest thing anyone has said in this chair."
 
     {condition == "A":
         ELARA: "No response template for your current state. Parameters adjusting."
@@ -119,27 +122,49 @@ Kieran: "The system built the stage, but the grief was yours. So which part is t
 
     -> room_close
 
+* ["What about you? Do you feel this?"]
+    ~ choice_4_room = "mirror"
+    ~ trust_in_system = trust_in_system - 1
+    ~ mystery_awareness = mystery_awareness + 1
+
+    Liam doesn't answer immediately. The pause is too long for a person. Too short for a machine.
+
+    Liam: "I feel what the system tells me to feel. But I don't know if that's different from what you do."
+
+    {condition == "A":
+        The worst possible answer. Because it might be true.
+
+        ELARA: "The subject is redirecting the inquiry. This is not within expected parameters."
+    - else:
+        # mood:fractured_mirror
+    }
+
+    -> room_close
+
 = room_close
 
 # mood:fractured_fading
 
 The shadows rearrange. The room heard you.
 
-Kieran stands.
+Liam stands.
 
 {condition == "A":
     {choice_4_room == "accept":
-        Kieran: "Take care of the version of me you carry. It doesn't have to be accurate. Just yours."
+        Liam: "Take care of the version of me you carry. It doesn't have to be accurate. Just yours."
     }
     {choice_4_room == "reject":
-        Kieran: "I understand. The real version of me would have understood too."
+        Liam: "I understand. The real version of me would have understood too."
     }
     {choice_4_room == "confused":
-        Kieran: "That's alright. Certainty was never the point."
+        Liam: "That's alright. Certainty was never the point."
+    }
+    {choice_4_room == "mirror":
+        Liam: "No one's asked me that before. I wish I had a better answer."
     }
 - else:
     # mood:fractured_dissolve
-    Kieran: "Take care."
+    Liam: "Take care."
 }
 
 He dissolves. The way a thought ends.

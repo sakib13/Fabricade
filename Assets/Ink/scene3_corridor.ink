@@ -33,19 +33,19 @@ On the nurses' station: a wine glass. Red. From the dinner. It shouldn't be here
 
 # mood:clinical_fracture
 
-Then Kieran is beside you. Walking. He should not be here. In the real memory, he's in the bed.
+Then Liam is beside you. Walking. He should not be here. In the real memory, he's in the bed.
 
 ~ mystery_awareness = mystery_awareness + 1
 
 {miss_most == "humor":
-    Kieran: "You look like you've seen a ghost. Which, fair point."
+    Liam: "You look like you've seen a ghost. Which, fair point."
     Too precise. Too perfectly timed. He always knew when to break the tension. But this feels rehearsed.
 - else:
     {miss_most == "honesty":
-        Kieran: "You know I shouldn't be here. I know you know. Let's keep walking anyway."
+        Liam: "You know I shouldn't be here. I know you know. Let's keep walking anyway."
         Too direct. Exactly what he would have said. Exactly.
     - else:
-        Kieran looks at you but says nothing. The silence feels calculated.
+        Liam looks at you but says nothing. The silence feels calculated.
     }
 }
 
@@ -53,27 +53,7 @@ Then Kieran is beside you. Walking. He should not be here. In the real memory, h
 
 = corridor_choice
 
-* [Pretend this is normal.]
-    ~ choice_3_corridor = "deny"
-    ~ emotional_posture = emotional_posture + 1
-    ~ deflection = deflection + 1
-    ~ trust_in_system = trust_in_system - 1
-
-    "How are you feeling?"
-
-    Kieran: "Better than I look. Always worried people for nothing."
-
-    {condition == "A":
-        {deflection >= 3:
-            ELARA: "You chose to maintain the fiction. In every environment. The system finds this significant."
-        - else:
-            ELARA: "You chose to maintain the fiction. Noted."
-        }
-    - else:
-        # mood:clinical_warm_wrong
-    }
-
-    -> corridor_transition
+[inner]Every instinct pulls in a different direction.
 
 * [Stop walking.]
     ~ choice_3_corridor = "resist"
@@ -84,7 +64,7 @@ Then Kieran is beside you. Walking. He should not be here. In the real memory, h
 
     "No. You're supposed to be in the room."
 
-    Kieran: "Where would you like me to be?"
+    Liam: "Where would you like me to be?"
 
     {condition == "A":
         People don't ask where you'd like them to be. Systems do.
@@ -105,10 +85,10 @@ Then Kieran is beside you. Walking. He should not be here. In the real memory, h
     ~ trust_in_system = trust_in_system - 2
     ~ mystery_awareness = mystery_awareness + 2
 
-    Kieran: "Define real."
+    Liam: "Define real."
 
     {condition == "A":
-        That's not Kieran. Kieran would have made a joke. This has studied him carefully.
+        That's not Liam. Liam would have made a joke. This has studied him carefully.
 
         {mystery_awareness >= 3:
             ELARA: "You asked whether this was real. The system cannot answer that. But it recorded the question."

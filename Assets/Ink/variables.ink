@@ -10,7 +10,7 @@ VAR openness = 0      // vulnerable, honest, emotionally direct choices
 VAR deflection = 0    // avoidance, sidestepping, redirecting choices
 VAR resistance = 0    // confrontational, challenging, refusing choices
 
-// Emotional posture tracks overall stance (drives Kieran's tone)
+// Emotional posture tracks overall stance (drives Liam's tone)
 // Range: -3 (closed/resistant) to +3 (open/accepting)
 VAR emotional_posture = 0
 
@@ -21,7 +21,7 @@ VAR trust_in_system = 2
 // How aware the player is of memory inconsistencies
 VAR mystery_awareness = 0
 
-// Personalization: what the player misses most about Kieran
+// Personalization: what the player misses most about Liam
 // "humor" / "honesty" / "refuse"
 VAR miss_most = ""
 

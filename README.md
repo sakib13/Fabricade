@@ -6,7 +6,7 @@ Fabricade is a text-based interactive fiction game built as a research instrumen
 
 ## About
 
-The player takes on the role of someone who has recently lost a close friend, Kieran. They enrol in a clinical programme run by ELARA (Emotional Landscape and Retrieval Architecture), an AI system that reconstructs shared memories as a form of grief therapy. Across six scenes, the player makes narrative choices that shape how the system responds.
+The player takes on the role of someone who has recently lost a close friend, Liam. They enrol in a clinical programme run by ELARA (Emotional Landscape and Retrieval Architecture), an AI system that reconstructs shared memories as a form of grief therapy. Across six scenes, the player makes narrative choices that shape how the system responds.
 
 ![Start Screen](Images/conditionA.png)
 
@@ -27,7 +27,7 @@ Every choice the player makes is tracked through internal behavioural variables:
 
 ### Condition A: Narrative Dialogue Adaptation
 
-In Condition A, the system listens to the player's choices and responds through language. ELARA's commentary shifts in tone and directness, Kieran's dialogue within the reconstructed memories adjusts to reflect the emotional stance the player has taken, and the player's own internal monologue reinterprets events differently depending on accumulated choices. A player who consistently confronts the system encounters substantively different narrative text than one who accepts or deflects.
+In Condition A, the system listens to the player's choices and responds through language. ELARA's commentary shifts in tone and directness, Liam's dialogue within the reconstructed memories adjusts to reflect the emotional stance the player has taken, and the player's own internal monologue reinterprets events differently depending on accumulated choices. A player who consistently confronts the system encounters substantively different narrative text than one who accepts or deflects.
 
 ![Condition A - Intake](Images/ConditionA2.png)
 
@@ -35,7 +35,7 @@ Here, ELARA directly engages the player: *"Why are you here?"* The three choices
 
 ![Condition A - The Dinner](Images/ConditionA3.png)
 
-By the dinner scene, ELARA initiates the first reconstructed memory. The player is placed in Kieran's flat. The narrative text itself is where adaptation lives: the details Kieran mentions, the way the player's internal voice frames the moment, and the weight each choice carries all shift based on the behavioural profile built from prior scenes. The choices here ("Say nothing. Let it pass." vs. "You don't drink red wine." vs. "Reach for your own glass. Redirect.") further refine the player's emotional trajectory, feeding back into the system for later scenes.
+By the dinner scene, ELARA initiates the first reconstructed memory. The player is placed in Liam's flat. The narrative text itself is where adaptation lives: the details Liam mentions, the way the player's internal voice frames the moment, and the weight each choice carries all shift based on the behavioural profile built from prior scenes. The choices here ("Say nothing. Let it pass." vs. "You don't drink red wine." vs. "Reach for your own glass. Redirect.") further refine the player's emotional trajectory, feeding back into the system for later scenes.
 
 ### Condition B: Atmospheric Aesthetic Adaptation
 
@@ -43,11 +43,11 @@ In Condition B, the narrative text stays the same regardless of choices. ELARA s
 
 ![Condition B - Intake](Images/conditionB.png)
 
-The same intake scene, but the experience is entirely different. ELARA says almost nothing. Instead, the warm glow overlay at the centre of the screen and the vignette darkening at the edges respond to what the player chooses. The atmosphere becomes the system's voice. The player is still making the same choices, still building the same behavioural profile, but the feedback loop operates through feeling rather than language. The question *"What do you miss most about Kieran?"* is framed identically, but the visual warmth or coldness surrounding the text shifts based on prior choices.
+The same intake scene, but the experience is entirely different. ELARA says almost nothing. Instead, the warm glow overlay at the centre of the screen and the vignette darkening at the edges respond to what the player chooses. The atmosphere becomes the system's voice. The player is still making the same choices, still building the same behavioural profile, but the feedback loop operates through feeling rather than language. The question *"What do you miss most about Liam?"* is framed identically, but the visual warmth or coldness surrounding the text shifts based on prior choices.
 
 ![Condition B - The Park Bench](Images/conditionB2.png)
 
-As the narrative progresses into later scenes, the atmospheric shifts become more pronounced. The warm glow intensifies or fades depending on the player's accumulated emotional posture. The vignette tightens during moments of tension. When narrative reality begins to fracture (Kieran says something he should not know, a corridor appears that does not belong), the text itself glitches before the player's eyes: characters scramble into noise, creating a visceral disruption that no amount of dialogue could replicate. The player's agency is still fully intact, but the system's response is felt rather than read.
+As the narrative progresses into later scenes, the atmospheric shifts become more pronounced. The warm glow intensifies or fades depending on the player's accumulated emotional posture. The vignette tightens during moments of tension. When narrative reality begins to fracture (Liam says something he should not know, a corridor appears that does not belong), the text itself glitches before the player's eyes: characters scramble into noise, creating a visceral disruption that no amount of dialogue could replicate. The player's agency is still fully intact, but the system's response is felt rather than read.
 
 ## The Research Question
 

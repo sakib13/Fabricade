@@ -25,15 +25,15 @@
     Autumn. Djurgården. October light. Copper trees.
 }
 
-Kieran beside you. Jacket too thin.
+Liam beside you. Jacket too thin.
 
 {miss_most == "humor":
-    Kieran: "I've been thinking about disappearing. Not dying. Just... becoming a really good memory. The kind people smile at."
+    Liam: "I've been thinking about disappearing. Not dying. Just... becoming a really good memory. The kind people smile at."
 - else:
     {miss_most == "honesty":
-        Kieran: "I've been thinking about disappearing. I need to say that out loud to someone. You're the only person I'd say it to."
+        Liam: "I've been thinking about disappearing. I need to say that out loud to someone. You're the only person I'd say it to."
     - else:
-        Kieran: "I've been thinking about disappearing. Not dying. Just becoming the version of me that exists in other people's memories."
+        Liam: "I've been thinking about disappearing. Not dying. Just becoming the version of me that exists in other people's memories."
     }
 }
 
@@ -49,7 +49,7 @@ Kieran beside you. Jacket too thin.
 
     "I carry you around already. The version isn't accurate, but it gets me through the day."
 
-    Kieran: "Then it's working."
+    Liam: "Then it's working."
 
     {condition == "A":
         {openness >= 2:
@@ -69,7 +69,7 @@ Kieran beside you. Jacket too thin.
 
     "You're not disappearing. You're right here."
 
-    Kieran: "Right. Here."
+    Liam: "Right. Here."
 
     {condition == "A":
         {deflection >= 2:
@@ -89,7 +89,7 @@ Kieran beside you. Jacket too thin.
 
     The silence holds.
 
-    Kieran: "Yeah. That's what I thought."
+    Liam: "Yeah. That's what I thought."
 
     {condition == "A":
         ELARA: "Silence. The system cannot determine whether this is restraint or avoidance."
@@ -99,11 +99,30 @@ Kieran beside you. Jacket too thin.
 
     -> bench_transition
 
+* [Change the subject.]
+    ~ choice_2_bench = "avoid"
+    ~ deflection = deflection + 1
+    ~ emotional_posture = emotional_posture - 1
+
+    "Did you see the match last night?"
+
+    Liam looks at you. The kind of look that says he knows what you're doing.
+
+    Liam: "Sure. Let's talk about the match."
+
+    {condition == "A":
+        ELARA: "You redirected away from vulnerability. The system notes the evasion."
+    - else:
+        # mood:autumn_hollow
+    }
+
+    -> bench_transition
+
 = bench_transition
 
 # mood:autumn_heavy
 
-Kieran: "When I'm gone. Whatever version of me you carry, it's yours."
+Liam: "When I'm gone. Whatever version of me you carry, it's yours."
 
 ~ mystery_awareness = mystery_awareness + 1
 

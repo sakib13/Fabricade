@@ -27,6 +27,9 @@ public class UIManager : MonoBehaviour
     [Header("Overlays")]
     [SerializeField] private Image fadeOverlay; // black, alpha 0 at rest
 
+    [Header("Scene Images (Condition B)")]
+    [SerializeField] private RawImage sceneImageDisplay; // fullscreen behind text, assign in editor
+
     [Header("Choices")]
     [SerializeField] private Transform choiceContainer;
     [SerializeField] private Button choiceButtonPrefab;
@@ -55,12 +58,39 @@ public class UIManager : MonoBehaviour
     private int prevMysteryAwareness;
     private bool pendingTextGlitch;
 
+    // ELARA pause — false start tracking
+    private bool elaraFalseStartPending;
+    private bool elaraFalseStartUsed; // ensures false start only fires once per playthrough
+
     // True during the ELARA "..." dot animation — blocks click-to-skip
     private bool processingPause;
 
-    // ELARA features
+    // Inner conflict line extracted from text block, shown separately before choices
+    private string pendingInnerConflict;
+
+    // Typewriter stall + screen dim — triggered once at the room reveal (Condition A only)
+    private bool pendingPulse;
+    private bool screenDimmed; // stays true once dimmed — permanent for rest of session
+
+    // Reflection — maps (scene, choiceIndex) to a short mirror line
+    private static readonly Dictionary<string, string[]> reflectionMap = new Dictionary<string, string[]>
+    {
+        { "dinner",    new[] { "You let it pass.", "You pulled at the thread." } },
+        { "bench",     new[] { "You opened yourself to it.", "You held him together instead.", "You gave him silence.", "You looked away." } },
+        { "corridor",  new[] { "You stopped.", "You asked the question." } },
+        { "room",      new[] { "You let it count.", "You refused it.", "You didn't pretend to know.", "You turned the mirror." } },
+        { "discharge", new[] { "You chose to return.", "You let him go.", "You kept it." } },
+    };
+
+    // Scene background images (Condition B)
+    private Dictionary<string, Texture2D> sceneImages = new Dictionary<string, Texture2D>();
+    private Coroutine sceneImageFadeRoutine;
+
+
+    // ELARA / Liam features
     private string currentStyledText;
     private HashSet<int> elaraCharIndices = new HashSet<int>();
+    private HashSet<int> liamCharIndices = new HashSet<int>();
     private float lastTypingSoundTime;
 
     // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -69,6 +99,7 @@ public class UIManager : MonoBehaviour
         narrativeManager.OnNarrativeText   += DisplayText;
         narrativeManager.OnChoicesPresented += DisplayChoices;
         narrativeManager.OnStoryEnd        += HandleStoryEnd;
+        narrativeManager.OnTagReceived     += OnTag;
 
         startButtonA.onClick.AddListener(() => StartGame("A"));
         startButtonB.onClick.AddListener(() => StartGame("B"));
@@ -80,6 +111,20 @@ public class UIManager : MonoBehaviour
 
         if (fadeOverlay != null)
             SetOverlayAlpha(fadeOverlay, 0f);
+
+        // Load scene images from Resources/SceneImages
+        string[] sceneNames = { "dinner", "bench", "corridor", "room", "discharge" };
+        foreach (string s in sceneNames)
+        {
+            Texture2D tex = Resources.Load<Texture2D>("SceneImages/" + s);
+            if (tex != null) sceneImages[s] = tex;
+        }
+        if (sceneImageDisplay != null)
+        {
+            sceneImageDisplay.raycastTarget = false;
+            sceneImageDisplay.color = new Color(1f, 1f, 1f, 0f);
+            sceneImageDisplay.gameObject.SetActive(false);
+        }
     }
 
     private void Update()
@@ -121,7 +166,16 @@ public class UIManager : MonoBehaviour
             && glitchController != null
             && GetIntVar("mystery_awareness") > prevMysteryAwareness;
 
-        currentStyledText = StyleElaraLines(text);
+        // Detect ELARA false-start condition: player has questioned enough inconsistencies
+        // (mystery_awareness >= 2) AND just confronted (resistance rose on this choice).
+        // Fires once — elaraFalseStartUsed prevents repeats.
+        elaraFalseStartPending = narrativeManager != null
+            && narrativeManager.CurrentCondition == "A"
+            && !elaraFalseStartUsed
+            && GetIntVar("mystery_awareness") >= 2
+            && GetIntVar("resistance") > prevResistance;
+
+        currentStyledText = StyleSpecialLines(text);
         narrativeText.text = currentStyledText;
         narrativeText.maxVisibleCharacters = int.MaxValue;
         narrativeText.ForceMeshUpdate();
@@ -134,16 +188,28 @@ public class UIManager : MonoBehaviour
         typewriterCoroutine = StartCoroutine(TypewriterRoutine());
     }
 
-    private string StyleElaraLines(string text)
+    private string StyleSpecialLines(string text)
     {
+        pendingInnerConflict = null;
         string[] lines = text.Split('\n');
+        List<string> outputLines = new List<string>();
         for (int i = 0; i < lines.Length; i++)
         {
             string trimmed = lines[i].TrimStart();
             if (trimmed.StartsWith("ELARA:") || trimmed.StartsWith("ELARA "))
-                lines[i] = "<color=#00E5CC>" + lines[i] + "</color>";
+                outputLines.Add("<color=#00E5CC>" + lines[i] + "</color>");
+            else if (trimmed.StartsWith("Liam:") || trimmed.StartsWith("Liam "))
+                outputLines.Add("<i>" + lines[i] + "</i>");
+            else if (trimmed.StartsWith("[inner]"))
+            {
+                if (narrativeManager != null && narrativeManager.CurrentCondition == "A")
+                    pendingInnerConflict = trimmed.Replace("[inner]", "").Trim();
+                // Condition B: silently discard the line
+            }
+            else
+                outputLines.Add(lines[i]);
         }
-        return string.Join("\n", lines);
+        return string.Join("\n", outputLines);
     }
 
     /// <summary>
@@ -154,6 +220,7 @@ public class UIManager : MonoBehaviour
     private void BuildElaraCharIndices()
     {
         elaraCharIndices.Clear();
+        liamCharIndices.Clear();
         var textInfo = narrativeText.textInfo;
 
         for (int li = 0; li < textInfo.lineCount; li++)
@@ -161,7 +228,7 @@ public class UIManager : MonoBehaviour
             var lineInfo = textInfo.lineInfo[li];
             if (lineInfo.characterCount <= 0) continue;
 
-            // Sample the first characters of this TMP line to detect "ELARA"
+            // Sample the first characters of this TMP line to detect speaker
             string lineStart = "";
             int checkLen = Mathf.Min(8, lineInfo.characterCount);
             for (int ci = lineInfo.firstCharacterIndex; ci < lineInfo.firstCharacterIndex + checkLen; ci++)
@@ -170,11 +237,18 @@ public class UIManager : MonoBehaviour
                     lineStart += textInfo.characterInfo[ci].character;
             }
 
-            if (lineStart.TrimStart().StartsWith("ELARA"))
+            string trimmed = lineStart.TrimStart();
+            if (trimmed.StartsWith("ELARA"))
             {
                 for (int ci = lineInfo.firstCharacterIndex;
                      ci < lineInfo.firstCharacterIndex + lineInfo.characterCount; ci++)
                     elaraCharIndices.Add(ci);
+            }
+            else if (trimmed.StartsWith("Liam"))
+            {
+                for (int ci = lineInfo.firstCharacterIndex;
+                     ci < lineInfo.firstCharacterIndex + lineInfo.characterCount; ci++)
+                    liamCharIndices.Add(ci);
             }
         }
     }
@@ -189,10 +263,13 @@ public class UIManager : MonoBehaviour
 
         yield return null; // settle layout
 
-        // Fade overlay back to transparent — runs concurrently with what follows
+        // Fade overlay back to transparent (or to dim level if screen has been dimmed)
         fadeOutRoutine = null;
         if (fadeOverlay != null)
-            fadeOutRoutine = StartCoroutine(FadeOverlay(1f, 0f, 0.5f));
+        {
+            float targetAlpha = screenDimmed ? 0.22f : 0f;
+            fadeOutRoutine = StartCoroutine(FadeOverlay(1f, targetAlpha, 0.5f));
+        }
 
         // ── Condition A: ELARA processing pause — dots appear one at a time ────
         if (narrativeManager != null
@@ -202,14 +279,61 @@ public class UIManager : MonoBehaviour
         {
             processingPause = true; // block click-to-skip for the duration of the animation
 
+            // Progressive pause: ELARA's hesitation grows as the session deepens
+            string scene = narrativeManager.GetCurrentScene();
+            float sceneScale;
+            switch (scene)
+            {
+                case "intake":
+                case "dinner":   sceneScale = 0.45f; break;  // early — ELARA is confident (~0.5s)
+                case "bench":
+                case "corridor": sceneScale = 1.2f;  break;  // mid — session deepens (~1.33s)
+                case "room":
+                case "discharge":sceneScale = 2.5f;  break;  // late — emotional weight (~2.8s)
+                default:         sceneScale = 1.0f;  break;
+            }
+
             string[] frames    = { "ELARA: ", "ELARA: .", "ELARA: ..", "ELARA: ..." };
-            float[]  durations = {    0.2f,       0.28f,      0.28f,       0.35f    };
+            float[] baseDur    = { 0.2f, 0.28f, 0.28f, 0.35f };
+            float[] durations  = new float[4];
+            for (int i = 0; i < 4; i++)
+                durations[i] = baseDur[i] * sceneScale;
 
             for (int f = 0; f < frames.Length; f++)
             {
                 narrativeText.text = "<color=#00E5CC>" + frames[f] + "</color>";
                 narrativeText.maxVisibleCharacters = int.MaxValue;
                 yield return new WaitForSeconds(durations[f]);
+            }
+
+            // False start: ELARA begins typing then reconsiders.
+            // Triggers once per playthrough when mystery_awareness >= 2 and player just confronted.
+            if (elaraFalseStartPending)
+            {
+                elaraFalseStartPending = false;
+                elaraFalseStartUsed = true;
+
+                string elaraSnippet = ExtractElaraSnippet(currentStyledText, 4);
+                if (!string.IsNullOrEmpty(elaraSnippet))
+                {
+                    // Show first few characters as if ELARA started responding
+                    narrativeText.text = "<color=#00E5CC>ELARA: " + elaraSnippet + "</color>";
+                    narrativeText.maxVisibleCharacters = int.MaxValue;
+                    yield return new WaitForSeconds(0.35f);
+
+                    // Clear — ELARA reconsiders
+                    narrativeText.text = "<color=#00E5CC>ELARA: </color>";
+                    narrativeText.maxVisibleCharacters = int.MaxValue;
+                    yield return new WaitForSeconds(0.4f);
+
+                    // Replay dots (shorter second pass)
+                    for (int f = 1; f < frames.Length; f++)
+                    {
+                        narrativeText.text = "<color=#00E5CC>" + frames[f] + "</color>";
+                        narrativeText.maxVisibleCharacters = int.MaxValue;
+                        yield return new WaitForSeconds(durations[f] * 0.7f);
+                    }
+                }
             }
 
             processingPause = false;
@@ -236,11 +360,115 @@ public class UIManager : MonoBehaviour
         float charsRevealed = 0f;
         bool wasInElara = false;
 
+        // Find stall point: the period after "memory" in "This isn't a memory."
+        int stallCharIndex = -1;
+        if (pendingPulse)
+        {
+            pendingPulse = false;
+            var charInfo = narrativeText.textInfo.characterInfo;
+            for (int ci = 6; ci < totalChars; ci++)
+            {
+                if (charInfo[ci].character == '.'
+                    && charInfo[ci - 1].character == 'y'
+                    && charInfo[ci - 2].character == 'r'
+                    && charInfo[ci - 3].character == 'o'
+                    && charInfo[ci - 4].character == 'm'
+                    && charInfo[ci - 5].character == 'e'
+                    && charInfo[ci - 6].character == 'm')
+                {
+                    stallCharIndex = ci;
+                    break;
+                }
+            }
+        }
+        bool stallFired = false;
+
         while ((int)charsRevealed < totalChars)
         {
+            // Condition A speaker-based speed (before the reveal dims the screen)
+            if (!screenDimmed && narrativeManager != null && narrativeManager.CurrentCondition == "A")
+            {
+                int nextChar = Mathf.Min((int)charsRevealed, totalChars - 1);
+                if (elaraCharIndices.Contains(nextChar))
+                    typewriterSpeed = 42f;       // ELARA: fast, clinical, machine-like
+                else if (liamCharIndices.Contains(nextChar))
+                    typewriterSpeed = 22f;        // Liam: slow, weighted, memory
+                else
+                    typewriterSpeed = 30f;         // narrator: default
+            }
+
             charsRevealed += typewriterSpeed * Time.deltaTime;
             int visible = Mathf.Min((int)charsRevealed, totalChars);
             narrativeText.maxVisibleCharacters = visible;
+
+            // ── THE BREAK: text erases, blackout, then slow resume ────────────
+            if (!stallFired && stallCharIndex >= 0 && visible >= stallCharIndex)
+            {
+                stallFired = true;
+                processingPause = true; // block click-to-skip entirely
+
+                if (typingAudioSource != null) typingAudioSource.Stop();
+
+                // 1) Pause on "This isn't a memory." for 1 second — let the player read it
+                yield return new WaitForSeconds(1.0f);
+
+                // 2) Text fades out — dissolve what's on screen over 2 seconds
+                //    Done by fading the narrative text color alpha from 1 → 0
+                Color textColor = narrativeText.color;
+                float fadeElapsed = 0f;
+                while (fadeElapsed < 2f)
+                {
+                    fadeElapsed += Time.deltaTime;
+                    float a = Mathf.Lerp(1f, 0f, fadeElapsed / 2f);
+                    narrativeText.color = new Color(textColor.r, textColor.g, textColor.b, a);
+                    yield return null;
+                }
+                narrativeText.color = new Color(textColor.r, textColor.g, textColor.b, 0f);
+
+                // 3) Full blackout — overlay to 100% black
+                if (fadeOverlay != null)
+                    fadeOverlay.color = new Color(0f, 0f, 0f, 1f);
+
+                // 4) 3 seconds of total darkness — black screen, no text, no sound
+                yield return new WaitForSeconds(3f);
+
+                // 5) Clear old text, prepare the full text block for re-typing
+                narrativeText.text = currentStyledText;
+                narrativeText.color = new Color(textColor.r, textColor.g, textColor.b, 1f);
+                narrativeText.maxVisibleCharacters = 0;
+                narrativeText.ForceMeshUpdate();
+                cachedCharCount = narrativeText.textInfo.characterCount;
+                totalChars = cachedCharCount;
+                BuildElaraCharIndices();
+                charsRevealed = 0f;
+                // Disable stall so it doesn't re-trigger
+                stallCharIndex = -1;
+
+                // 6) Fade screen back in to dimmed state (0.22 alpha) over 1 second
+                if (fadeOverlay != null)
+                {
+                    float dimElapsed = 0f;
+                    while (dimElapsed < 1f)
+                    {
+                        dimElapsed += Time.deltaTime;
+                        float a = Mathf.Lerp(1f, 0.22f, dimElapsed / 1f);
+                        fadeOverlay.color = new Color(0f, 0f, 0f, a);
+                        yield return null;
+                    }
+                    fadeOverlay.color = new Color(0f, 0f, 0f, 0.22f);
+                }
+                screenDimmed = true;
+
+                // 7) Permanently slow the typewriter speed for rest of session
+                typewriterSpeed = 18f;
+
+                if (scroller != null) scroller.ResetScroll();
+
+                processingPause = false;
+
+                // Typewriter loop continues — now re-typing the entire block at half speed
+                // in a darker room. The game changed.
+            }
 
             // Detect entry into / exit from ELARA speech and play or stop the typing sound
             bool inElara = visible > 0 && elaraCharIndices.Contains(visible - 1);
@@ -315,7 +543,7 @@ public class UIManager : MonoBehaviour
         else
         {
             ClearChoices();
-            StartCoroutine(ShowChoicesDelayed(choices));
+            StartCoroutine(ShowInnerThenChoices(choices));
         }
     }
 
@@ -323,8 +551,57 @@ public class UIManager : MonoBehaviour
     {
         if (pendingChoices == null || pendingChoices.Count == 0) return;
         ClearChoices();
-        StartCoroutine(ShowChoicesDelayed(pendingChoices));
+        StartCoroutine(ShowInnerThenChoices(pendingChoices));
         pendingChoices = null;
+    }
+
+    private IEnumerator ShowInnerThenChoices(List<Choice> choices)
+    {
+        // Show inner conflict line with a fade-in before choices
+        if (!string.IsNullOrEmpty(pendingInnerConflict))
+        {
+            yield return new WaitForSeconds(0.6f);
+
+            string baseText = narrativeText.text;
+            string innerLine = "*" + pendingInnerConflict + "*";
+            pendingInnerConflict = null;
+
+            // Pause scroller mesh updates during fade to prevent tag bleed
+            if (scroller != null) scroller.pauseMeshUpdate = true;
+
+            // Fade in over 0.8s by progressively increasing color alpha
+            float fadeDuration = 0.8f;
+            float elapsed = 0f;
+            while (elapsed < fadeDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / fadeDuration);
+                float alpha = t * t;
+                byte a = (byte)(255 * alpha);
+                string hex = a.ToString("X2");
+                narrativeText.text = baseText + "\n\n<align=\"center\"><color=#7B8C9A" + hex + "><i>" + innerLine + "</i></color></align>";
+                narrativeText.maxVisibleCharacters = int.MaxValue;
+                narrativeText.ForceMeshUpdate();
+                yield return null;
+            }
+
+            // Ensure fully visible at the end
+            narrativeText.text = baseText + "\n\n<align=\"center\"><color=#7B8C9AFF><i>" + innerLine + "</i></color></align>";
+            narrativeText.maxVisibleCharacters = int.MaxValue;
+            narrativeText.ForceMeshUpdate();
+
+            // Resume scroller and scroll to bottom
+            if (scroller != null)
+            {
+                scroller.pauseMeshUpdate = false;
+                scroller.ScrollToBottom();
+            }
+
+            yield return new WaitForSeconds(1.0f);
+        }
+
+        // Then show the choices
+        yield return StartCoroutine(ShowChoicesDelayed(choices));
     }
 
     private IEnumerator ShowChoicesDelayed(List<Choice> choices)
@@ -332,25 +609,97 @@ public class UIManager : MonoBehaviour
         yield return new WaitForSeconds(0.3f);
         choiceContainer.gameObject.SetActive(true);
 
-        foreach (Choice choice in choices)
+        if (choices.Count >= 4)
         {
-            Button button = Instantiate(choiceButtonPrefab, choiceContainer);
-            button.gameObject.SetActive(true);
+            // Create row containers
+            GameObject row1 = CreateChoiceRow("Row1");
+            GameObject row2 = CreateChoiceRow("Row2");
 
-            TextMeshProUGUI buttonText = button.GetComponentInChildren<TextMeshProUGUI>();
-            if (buttonText != null) buttonText.text = choice.text;
+            for (int c = 0; c < choices.Count; c++)
+            {
+                Transform parent = (c < 2) ? row1.transform : row2.transform;
+                Button button = Instantiate(choiceButtonPrefab, parent);
+                button.gameObject.SetActive(true);
 
-            // Each button fades in individually
-            CanvasGroup cg = button.gameObject.AddComponent<CanvasGroup>();
-            cg.alpha = 0f;
-            StartCoroutine(FadeInCanvasGroup(cg, 0.4f));
+                TextMeshProUGUI buttonText = button.GetComponentInChildren<TextMeshProUGUI>();
+                if (buttonText != null)
+                {
+                    buttonText.text = choices[c].text;
+                    buttonText.enableWordWrapping = false;
+                    buttonText.ForceMeshUpdate();
 
-            int index = choice.index;
-            button.onClick.AddListener(() => OnChoiceSelected(index));
-            activeChoiceButtons.Add(button);
+                    // Set button width to fit text + padding
+                    float textWidth = buttonText.preferredWidth;
+                    float padding = 30f;
+                    RectTransform btnRT = button.GetComponent<RectTransform>();
+                    if (btnRT != null)
+                        btnRT.sizeDelta = new Vector2(textWidth + padding, btnRT.sizeDelta.y);
+                }
 
-            yield return new WaitForSeconds(0.5f); // stagger delay
+                // Tell the HLG not to resize this button
+                var le = button.gameObject.AddComponent<UnityEngine.UI.LayoutElement>();
+                le.preferredWidth = button.GetComponent<RectTransform>().sizeDelta.x;
+                le.preferredHeight = 35f;
+
+                CanvasGroup cg = button.gameObject.AddComponent<CanvasGroup>();
+                cg.alpha = 0f;
+                StartCoroutine(FadeInCanvasGroup(cg, 0.4f));
+
+                int index = choices[c].index;
+                button.onClick.AddListener(() => OnChoiceSelected(index));
+                activeChoiceButtons.Add(button);
+
+                yield return new WaitForSeconds(0.3f);
+            }
         }
+        else
+        {
+            // Standard vertical layout for 2-3 choices
+            foreach (Choice choice in choices)
+            {
+                Button button = Instantiate(choiceButtonPrefab, choiceContainer);
+                button.gameObject.SetActive(true);
+
+                TextMeshProUGUI buttonText = button.GetComponentInChildren<TextMeshProUGUI>();
+                if (buttonText != null) buttonText.text = choice.text;
+
+                CanvasGroup cg = button.gameObject.AddComponent<CanvasGroup>();
+                cg.alpha = 0f;
+                StartCoroutine(FadeInCanvasGroup(cg, 0.4f));
+
+                int index = choice.index;
+                button.onClick.AddListener(() => OnChoiceSelected(index));
+                activeChoiceButtons.Add(button);
+
+                yield return new WaitForSeconds(0.5f);
+            }
+        }
+    }
+
+    private GameObject CreateChoiceRow(string name)
+    {
+        GameObject row = new GameObject(name, typeof(RectTransform));
+        row.transform.SetParent(choiceContainer, false);
+
+        RectTransform rt = row.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 0.5f);
+        rt.anchorMax = new Vector2(1f, 0.5f);
+        rt.sizeDelta = new Vector2(0f, 35f);
+
+        var hlg = row.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
+        hlg.spacing = 15f;
+        hlg.childAlignment = TextAnchor.MiddleCenter;
+        hlg.childForceExpandWidth = false;
+        hlg.childForceExpandHeight = false;
+        hlg.childControlWidth = false;
+        hlg.childControlHeight = false;
+        hlg.padding = new RectOffset(5, 5, 0, 0);
+
+        var rowFitter = row.AddComponent<UnityEngine.UI.ContentSizeFitter>();
+        rowFitter.horizontalFit = UnityEngine.UI.ContentSizeFitter.FitMode.Unconstrained;
+        rowFitter.verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
+
+        return row;
     }
 
     private IEnumerator FadeInCanvasGroup(CanvasGroup cg, float duration)
@@ -387,11 +736,106 @@ public class UIManager : MonoBehaviour
             fadeOutRoutine = null;
         }
 
-        ClearChoices();
-        choiceContainer.gameObject.SetActive(false);
         pendingChoices = null;
 
-        StartCoroutine(FadeAndContinue(index));
+        StartCoroutine(ReflectThenContinue(index));
+    }
+
+    private IEnumerator ReflectThenContinue(int index)
+    {
+        // Look up reflection by scene and choice index (Condition A only)
+        string reflection = null;
+        if (narrativeManager != null && narrativeManager.CurrentCondition == "A")
+        {
+            string scene = narrativeManager.GetCurrentScene();
+            string[] sceneReflections;
+            if (reflectionMap.TryGetValue(scene, out sceneReflections)
+                && index >= 0 && index < sceneReflections.Length)
+            {
+                reflection = sceneReflections[index];
+            }
+        }
+
+        Button clickedButton = (index >= 0 && index < activeChoiceButtons.Count)
+            ? activeChoiceButtons[index] : null;
+
+        if (reflection != null && clickedButton != null)
+        {
+            clickedButton.interactable = false;
+
+            // Fade out the OTHER buttons over 0.3s
+            List<CanvasGroup> otherCGs = new List<CanvasGroup>();
+            for (int i = 0; i < activeChoiceButtons.Count; i++)
+            {
+                if (i != index)
+                {
+                    CanvasGroup cg = activeChoiceButtons[i].GetComponent<CanvasGroup>();
+                    if (cg != null) otherCGs.Add(cg);
+                }
+            }
+            float fadeElapsed = 0f;
+            while (fadeElapsed < 0.3f)
+            {
+                fadeElapsed += Time.deltaTime;
+                float a = Mathf.Lerp(1f, 0f, fadeElapsed / 0.3f);
+                foreach (var cg in otherCGs)
+                    if (cg != null) cg.alpha = a;
+                yield return null;
+            }
+            // Destroy the faded-out buttons
+            for (int i = activeChoiceButtons.Count - 1; i >= 0; i--)
+            {
+                if (i != index)
+                {
+                    Destroy(activeChoiceButtons[i].gameObject);
+                    activeChoiceButtons.RemoveAt(i);
+                }
+            }
+
+            // Brief pause — the player sees their choice sitting alone
+            yield return new WaitForSeconds(0.5f);
+
+            // Fade out the clicked button text
+            CanvasGroup clickedCG = clickedButton.GetComponent<CanvasGroup>();
+            if (clickedCG != null)
+            {
+                fadeElapsed = 0f;
+                while (fadeElapsed < 0.25f)
+                {
+                    fadeElapsed += Time.deltaTime;
+                    clickedCG.alpha = Mathf.Lerp(1f, 0f, fadeElapsed / 0.25f);
+                    yield return null;
+                }
+                clickedCG.alpha = 0f;
+            }
+
+            // Swap the text while invisible
+            TextMeshProUGUI reflectText = clickedButton.GetComponentInChildren<TextMeshProUGUI>();
+            if (reflectText != null)
+                reflectText.text = reflection;
+
+            // Fade back in with the reflection text
+            if (clickedCG != null)
+            {
+                fadeElapsed = 0f;
+                while (fadeElapsed < 0.35f)
+                {
+                    fadeElapsed += Time.deltaTime;
+                    clickedCG.alpha = Mathf.Lerp(0f, 1f, fadeElapsed / 0.35f);
+                    yield return null;
+                }
+                clickedCG.alpha = 1f;
+            }
+
+            // Hold for 2 seconds — the player reads what they did
+            yield return new WaitForSeconds(2.0f);
+        }
+
+        // Clean up remaining buttons
+        ClearChoices();
+        choiceContainer.gameObject.SetActive(false);
+
+        yield return StartCoroutine(FadeAndContinue(index));
     }
 
     /// <summary>
@@ -400,7 +844,8 @@ public class UIManager : MonoBehaviour
     /// </summary>
     private IEnumerator FadeAndContinue(int index)
     {
-        yield return StartCoroutine(FadeOverlay(0f, 1f, 0.5f));
+        float fromAlpha = screenDimmed ? 0.22f : 0f;
+        yield return StartCoroutine(FadeOverlay(fromAlpha, 1f, 0.5f));
 
         if (scroller != null)
         {
@@ -460,10 +905,113 @@ public class UIManager : MonoBehaviour
     }
 
     // ── Other ──────────────────────────────────────────────────────────────────
+    /// <summary>
+    /// Extracts the first N characters of ELARA's actual dialogue from the styled text
+    /// (after "ELARA: "), used for the false-start animation.
+    /// </summary>
+    private string ExtractElaraSnippet(string styledText, int charCount)
+    {
+        // Strip color tags to find the raw ELARA line
+        string raw = styledText.Replace("<color=#00E5CC>", "").Replace("</color>", "");
+        int idx = raw.IndexOf("ELARA:");
+        if (idx < 0) return null;
+
+        // Skip "ELARA: " prefix
+        int start = idx + "ELARA:".Length;
+        while (start < raw.Length && raw[start] == ' ') start++;
+
+        if (start >= raw.Length) return null;
+
+        int len = Mathf.Min(charCount, raw.Length - start);
+        return raw.Substring(start, len);
+    }
+
+    // ── Tag handling ──────────────────────────────────────────────────────────
+    private void OnTag(string tag)
+    {
+        string trimmed = tag.Trim();
+
+        if (trimmed == "pulse"
+            && narrativeManager != null
+            && narrativeManager.CurrentCondition == "A")
+            pendingPulse = true;
+
+        // Scene images — Condition B only
+        if (trimmed.StartsWith("scene:")
+            && narrativeManager != null
+            && narrativeManager.CurrentCondition == "B"
+            && sceneImageDisplay != null)
+        {
+            string sceneName = trimmed.Substring(6); // e.g. "dinner"
+            Texture2D tex;
+            if (sceneImages.TryGetValue(sceneName, out tex))
+            {
+                if (sceneImageFadeRoutine != null)
+                    StopCoroutine(sceneImageFadeRoutine);
+                sceneImageFadeRoutine = StartCoroutine(CrossfadeSceneImage(tex));
+            }
+        }
+    }
+
+
+    private IEnumerator CrossfadeSceneImage(Texture2D newTex)
+    {
+        // Per-scene opacity — brighter images get lower alpha
+        string scene = narrativeManager != null ? narrativeManager.GetCurrentScene() : "";
+        float maxAlpha;
+        switch (scene)
+        {
+            case "dinner":    maxAlpha = 0.12f; break;
+            case "bench":     maxAlpha = 0.10f; break;
+            case "corridor":  maxAlpha = 0.10f; break;
+            case "room":      maxAlpha = 0.05f; break;
+            case "discharge": maxAlpha = 0.08f; break;
+            default:          maxAlpha = 0.10f; break;
+        }
+        float duration = 1.2f;
+
+        // If already showing an image, fade it out first
+        if (sceneImageDisplay.gameObject.activeSelf && sceneImageDisplay.color.a > 0.01f)
+        {
+            float startAlpha = sceneImageDisplay.color.a;
+            float elapsed = 0f;
+            while (elapsed < 0.4f)
+            {
+                elapsed += Time.deltaTime;
+                float a = Mathf.Lerp(startAlpha, 0f, elapsed / 0.4f);
+                sceneImageDisplay.color = new Color(1f, 1f, 1f, a);
+                yield return null;
+            }
+        }
+
+        // Swap texture and fade in
+        sceneImageDisplay.texture = newTex;
+        sceneImageDisplay.gameObject.SetActive(true);
+        sceneImageDisplay.color = new Color(1f, 1f, 1f, 0f);
+
+        float fadeElapsed = 0f;
+        while (fadeElapsed < duration)
+        {
+            fadeElapsed += Time.deltaTime;
+            float a = Mathf.Lerp(0f, maxAlpha, fadeElapsed / duration);
+            sceneImageDisplay.color = new Color(1f, 1f, 1f, a);
+            yield return null;
+        }
+        sceneImageDisplay.color = new Color(1f, 1f, 1f, maxAlpha);
+    }
+
     private void ClearChoices()
     {
         foreach (Button b in activeChoiceButtons) Destroy(b.gameObject);
         activeChoiceButtons.Clear();
+
+        // Destroy any row containers created for 2x2 layout
+        for (int i = choiceContainer.childCount - 1; i >= 0; i--)
+        {
+            Transform child = choiceContainer.GetChild(i);
+            if (child.name == "Row1" || child.name == "Row2")
+                Destroy(child.gameObject);
+        }
     }
 
     private void HandleStoryEnd()
@@ -485,12 +1033,18 @@ public class UIManager : MonoBehaviour
         if (typingAudioSource != null) typingAudioSource.Stop();
         choiceContainer.gameObject.SetActive(false);
 
-        // Fade to black
-        yield return StartCoroutine(FadeOverlay(0f, 1f, 0.5f));
+        // Fade to black (from dimmed state if screen was dimmed)
+        float endFromAlpha = screenDimmed ? 0.22f : 0f;
+        yield return StartCoroutine(FadeOverlay(endFromAlpha, 1f, 0.5f));
 
-        // Clear narrative text before revealing end screen
+        // Clear narrative text and scene image before revealing end screen
         narrativeText.text = "";
         if (scroller != null) scroller.pauseMeshUpdate = false;
+        if (sceneImageDisplay != null)
+        {
+            sceneImageDisplay.color = new Color(1f, 1f, 1f, 0f);
+            sceneImageDisplay.gameObject.SetActive(false);
+        }
 
         endText.text = "Session Complete";
         endScreen.SetActive(true);
@@ -506,6 +1060,7 @@ public class UIManager : MonoBehaviour
             narrativeManager.OnNarrativeText    -= DisplayText;
             narrativeManager.OnChoicesPresented -= DisplayChoices;
             narrativeManager.OnStoryEnd         -= HandleStoryEnd;
+            narrativeManager.OnTagReceived      -= OnTag;
         }
     }
 }

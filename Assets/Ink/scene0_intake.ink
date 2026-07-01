@@ -9,7 +9,7 @@
 
 White room. A chair. A glass of water.
 
-ELARA: "Welcome to ELARA. Four reconstructed memory environments linked to Kieran Althaus. One calibration question. Why are you here?"
+ELARA: "Welcome to ELARA. Four reconstructed memory environments linked to Liam Althaus. One calibration question. Why are you here?"
 
 -> intake_choice
 
@@ -61,7 +61,7 @@ ELARA: "Welcome to ELARA. Four reconstructed memory environments linked to Kiera
 
 = intake_personal
 
-ELARA: "One additional input. The system uses personal context to shape memory environments. What do you miss most about Kieran?"
+ELARA: "One additional input. The system uses personal context to shape memory environments. What do you miss most about Liam?"
 
 * ["The way he made me laugh."]
     ~ miss_most = "humor"
