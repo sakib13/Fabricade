@@ -13,6 +13,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private AtmosphericController atmosphericController;
     [SerializeField] private NarrativeScroller scroller;
     [SerializeField] private GlitchController glitchController;
+    [SerializeField] private BehavioralLogger behavioralLogger;
 
     [Header("Text Display")]
     [SerializeField] private TextMeshProUGUI narrativeText;
@@ -42,6 +43,8 @@ public class UIManager : MonoBehaviour
     [Header("End Screen")]
     [SerializeField] private GameObject endScreen;
     [SerializeField] private TextMeshProUGUI endText;
+
+    private Button restartButton;
 
     // ── Runtime state ──────────────────────────────────────────────────────────
     private List<Button> activeChoiceButtons = new List<Button>();
@@ -1049,8 +1052,113 @@ public class UIManager : MonoBehaviour
         endText.text = "Session Complete";
         endScreen.SetActive(true);
 
+        // Create restart button below the end text
+        if (restartButton != null)
+            Destroy(restartButton.gameObject);
+        restartButton = CreateRestartButton();
+
         // Fade in to reveal end screen
         yield return StartCoroutine(FadeOverlay(1f, 0f, 0.8f));
+    }
+
+    private Button CreateRestartButton()
+    {
+        GameObject btnObj = new GameObject("RestartButton", typeof(RectTransform));
+        btnObj.transform.SetParent(endScreen.transform, false);
+
+        RectTransform rt = btnObj.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.35f, 0.3f);
+        rt.anchorMax = new Vector2(0.65f, 0.38f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta = Vector2.zero;
+
+        UnityEngine.UI.Image img = btnObj.AddComponent<UnityEngine.UI.Image>();
+        img.color = new Color(0.15f, 0.15f, 0.19f, 1f);
+
+        btnObj.AddComponent<CanvasRenderer>();
+
+        Button btn = btnObj.AddComponent<Button>();
+        var colors = btn.colors;
+        colors.normalColor = new Color(0.15f, 0.15f, 0.19f, 1f);
+        colors.highlightedColor = new Color(0.22f, 0.22f, 0.28f, 1f);
+        colors.pressedColor = new Color(0.12f, 0.12f, 0.16f, 1f);
+        btn.colors = colors;
+        btn.targetGraphic = img;
+        btn.onClick.AddListener(ReturnToStart);
+
+        GameObject textObj = new GameObject("Text", typeof(RectTransform));
+        textObj.transform.SetParent(btnObj.transform, false);
+
+        RectTransform textRt = textObj.GetComponent<RectTransform>();
+        textRt.anchorMin = Vector2.zero;
+        textRt.anchorMax = Vector2.one;
+        textRt.anchoredPosition = Vector2.zero;
+        textRt.sizeDelta = Vector2.zero;
+
+        TextMeshProUGUI tmp = textObj.AddComponent<TextMeshProUGUI>();
+        tmp.text = "Play Again";
+        tmp.color = new Color(0.54f, 0.67f, 0.72f, 1f);
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.fontSize = 24f;
+
+        if (narrativeText != null && narrativeText.font != null)
+            tmp.font = narrativeText.font;
+
+        return btn;
+    }
+
+    private void ReturnToStart()
+    {
+        // Stop any running coroutines
+        StopAllCoroutines();
+
+        // Reset UI
+        narrativeText.text = "";
+        if (scroller != null) scroller.pauseMeshUpdate = false;
+        ClearChoices();
+        choiceContainer.gameObject.SetActive(false);
+        endScreen.SetActive(false);
+        if (restartButton != null)
+        {
+            Destroy(restartButton.gameObject);
+            restartButton = null;
+        }
+
+        // Reset scene image
+        if (sceneImageDisplay != null)
+        {
+            sceneImageDisplay.color = new Color(1f, 1f, 1f, 0f);
+            sceneImageDisplay.gameObject.SetActive(false);
+        }
+
+        // Reset overlay
+        if (fadeOverlay != null)
+            SetOverlayAlpha(fadeOverlay, 0f);
+
+        // Reset state flags
+        isTyping = false;
+        skipCooldown = false;
+        pendingPulse = false;
+        screenDimmed = false;
+        pendingTextGlitch = false;
+        elaraFalseStartPending = false;
+        elaraFalseStartUsed = false;
+        processingPause = false;
+        pendingInnerConflict = null;
+        currentStyledText = null;
+
+        // Reset tracked variable state
+        prevOpenness = 0;
+        prevResistance = 0;
+        prevMysteryAwareness = 0;
+
+        // Reset the Ink story and logger
+        narrativeManager.ResetStory();
+        if (behavioralLogger != null)
+            behavioralLogger.ResetSession();
+
+        // Show start screen
+        startScreen.SetActive(true);
     }
 
     private void OnDestroy()

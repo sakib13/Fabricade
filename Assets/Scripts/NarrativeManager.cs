@@ -47,6 +47,12 @@ public class NarrativeManager : MonoBehaviour
             story.variablesState["condition"] = condition;
     }
 
+    public void ResetStory()
+    {
+        story = new Story(inkJSON.text);
+        story.variablesState["condition"] = condition;
+    }
+
     public void StartStory()
     {
         if (story == null)

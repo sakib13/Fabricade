@@ -1,9 +1,12 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Ink.Runtime;
+#if !UNITY_WEBGL || UNITY_EDITOR
 using IOPath = System.IO.Path;
 using Directory = System.IO.Directory;
 using File = System.IO.File;
+#endif
 
 /// <summary>
 /// Logs all player behavior to a timestamped JSON file.
@@ -17,6 +20,14 @@ public class BehavioralLogger : MonoBehaviour
 
     [Header("Settings")]
     [SerializeField] private string outputFolder = "SessionLogs";
+
+    [Header("WebGL Remote Logging")]
+    [SerializeField] private string webEndpoint = "";
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+    [DllImport("__Internal")]
+    private static extern void WebGLPostJson(string url, string json);
+#endif
 
     private SessionLog sessionLog;
     private float choicePresentedTime;
@@ -71,13 +82,38 @@ public class BehavioralLogger : MonoBehaviour
 
         sessionStartTime = Time.time;
 
-        // Create output directory
+#if !UNITY_WEBGL || UNITY_EDITOR
+        // Create output directory (standalone builds only)
         string fullPath = IOPath.Combine(Application.dataPath, "..", outputFolder);
         if (!Directory.Exists(fullPath))
             Directory.CreateDirectory(fullPath);
 
         sessionFilePath = IOPath.Combine(fullPath,
             $"session_{sessionLog.sessionId}_{System.DateTime.Now:yyyyMMdd_HHmmss}.json");
+#endif
+    }
+
+    public void ResetSession()
+    {
+        sessionLog = new SessionLog
+        {
+            sessionId = System.Guid.NewGuid().ToString().Substring(0, 8),
+            startTime = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+            entries = new List<LogEntry>()
+        };
+
+        sessionStartTime = Time.time;
+        currentScene = "";
+        choicePresentedTime = 0f;
+
+#if !UNITY_WEBGL || UNITY_EDITOR
+        string fullPath = IOPath.Combine(Application.dataPath, "..", outputFolder);
+        if (!Directory.Exists(fullPath))
+            Directory.CreateDirectory(fullPath);
+
+        sessionFilePath = IOPath.Combine(fullPath,
+            $"session_{sessionLog.sessionId}_{System.DateTime.Now:yyyyMMdd_HHmmss}.json");
+#endif
     }
 
     private void OnTag(string tag)
@@ -152,7 +188,11 @@ public class BehavioralLogger : MonoBehaviour
 
         AddEntry("story_end", currentScene, finalState);
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+        UploadLog();
+#else
         Debug.Log($"BehavioralLogger: Session saved to {sessionFilePath}");
+#endif
     }
 
     private void AddEntry(string eventType, string scene, string details)
@@ -173,8 +213,25 @@ public class BehavioralLogger : MonoBehaviour
 
     private void SaveLog()
     {
+#if !UNITY_WEBGL || UNITY_EDITOR
         string json = JsonUtility.ToJson(sessionLog, true);
         File.WriteAllText(sessionFilePath, json);
+#endif
+    }
+
+    private void UploadLog()
+    {
+        string json = JsonUtility.ToJson(sessionLog, true);
+
+        if (string.IsNullOrEmpty(webEndpoint))
+        {
+            Debug.LogWarning("BehavioralLogger: webEndpoint not set, cannot upload log.");
+            return;
+        }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        WebGLPostJson(webEndpoint, json);
+#endif
     }
 
     private void OnDestroy()
