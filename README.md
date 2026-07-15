@@ -2,7 +2,7 @@
 
 Fabricade is a text-based interactive fiction game built as a research instrument for a Master's thesis investigating player experience of emotionally adaptive game narratives. The game is developed in Unity using the Ink narrative scripting language and deployed as a WebGL browser game.
 
-**[Play Fabricade](https://sakib13.itch.io/fabricade)**
+**[Play Fabricade](https://sakibahsandiptogmailcom.itch.io/fabricade)**
 
 ## About
 
@@ -82,7 +82,7 @@ Assets/
 ## How to Play
 
 ### Browser (Recommended)
-Visit the [itch.io page](https://sakib13.itch.io/fabricade) and play directly in your browser. No download or account required. Works on any OS and modern browser with SharedArrayBuffer support.
+Visit the [itch.io page](https://sakibahsandiptogmailcom.itch.io/fabricade) and play directly in your browser. No download or account required. Works on any OS and modern browser with SharedArrayBuffer support.
 
 ### From Unity Editor
 1. Open the project in Unity (URP)
