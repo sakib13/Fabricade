@@ -14,12 +14,12 @@ The start screen presents two conditions. Each represents a fundamentally differ
 
 ### Scenes
 
-1. **Intake** — Initial session with ELARA
-2. **The Dinner** — A reconstructed memory of a shared meal
-3. **The Park Bench** — A reflective moment in an autumn park
-4. **The Hospital Corridor** — A disorienting clinical environment
-5. **The Room** — The revelation scene
-6. **Discharge** — Final session and resolution
+1. **Intake** : Initial session with ELARA
+2. **The Dinner** : A reconstructed memory of a shared meal
+3. **The Park Bench** : A reflective moment in an autumn park
+4. **The Hospital Corridor** : A disorienting clinical environment
+5. **The Room** : The revelation scene
+6. **Discharge** : Final session and resolution
 
 ## How Adaptation Works
 
@@ -29,19 +29,19 @@ Every choice the player makes is tracked through internal behavioural variables:
 
 In Condition A, the system listens to the player's choices and responds through language. ELARA's commentary shifts in tone and directness, Liam's dialogue within the reconstructed memories adjusts to reflect the emotional stance the player has taken, and the player's own internal monologue reinterprets events differently depending on accumulated choices. A player who consistently confronts the system encounters substantively different narrative text than one who accepts or deflects.
 
-![Condition A — The Dinner](Images/Condition_A_1.png)
+![Condition A, The Dinner](Images/Condition_A_1.png)
 
-The Dinner scene in Condition A. ELARA initiates the first reconstructed memory. The player's internal monologue surfaces the inconsistency — *"The detail sits there. Small. Wrong."* — and the player decides whether to confront or accept it. The narrative text, Liam's dialogue, and ELARA's responses all adapt based on prior choices.
+The Dinner scene in Condition A. ELARA initiates the first reconstructed memory. The player's internal monologue surfaces the inconsistency, *"The detail sits there. Small. Wrong."*, and the player decides whether to confront or accept it. The narrative text, Liam's dialogue, and ELARA's responses all adapt based on prior choices.
 
 ### Condition B: Atmospheric Aesthetic Adaptation
 
 In Condition B, the narrative text stays the same regardless of choices. ELARA speaks minimally and offers no interpretive commentary. Instead, the game adapts through atmosphere: vignette overlays darken the screen edges to create a sense of enclosure or exposure, a warm glow emanates from the centre during intimate moments and recedes during clinical ones, text glitch effects scramble characters into symbolic noise at moments of narrative disruption, a screen glitch effect fractures the display at the threshold between the hospital corridor and the revelation scene, and scene-specific images provide visual context for each memory environment.
 
-![Condition B — The Dinner](Images/Condition_B_1.png)
+![Condition B, The Dinner](Images/Condition_B_1.png)
 
 The same Dinner scene in Condition B. The narrative text is identical, but the experience is transformed: a candlelit image sets the atmosphere, vignette overlays darken the edges, and a warm glow responds to the player's emotional posture. The system communicates through feeling rather than language.
 
-![Condition B — The Park Bench](Images/Condition_B_2.png)
+![Condition B, The Park Bench](Images/Condition_B_2.png)
 
 The Park Bench scene in Condition B. The atmospheric glow shifts as the scene moves outdoors. Scene-specific imagery and four choice options arranged in a grid give the player a different sense of presence than Condition A's text-only environment.
 
@@ -51,12 +51,14 @@ Both conditions raise the same question: *How do players experience emotionally 
 
 ## Tech Stack
 
-- **Unity** (URP) — WebGL build
-- **Ink** — narrative scripting via inkle's Ink-Unity integration
-- **TextMeshPro** — text rendering and typewriter effect
-- **Share Tech Mono** — typeface
-- **Google Apps Script** — remote session log collection via Google Sheets
-- **WebGL jslib plugin** — browser-native fetch for cross-origin log uploads
+| Technology | Role |
+|---|---|
+| **Unity** (URP) | WebGL build |
+| **Ink** | Narrative scripting via inkle's Ink-Unity integration |
+| **TextMeshPro** | Text rendering and typewriter effect |
+| **Share Tech Mono** | Typeface |
+| **Google Apps Script** | Remote session log collection via Google Sheets |
+| **WebGL jslib plugin** | Browser-native fetch for cross-origin log uploads |
 
 ## Project Structure
 
